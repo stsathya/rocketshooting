@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rocket Shooting Game</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+  <style>
+    /* Remove default margin and padding, and set a black background */
+    body {
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: #000;
+      font-family: Arial, sans-serif;
+    }
+    .game-over-overlay {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.8);
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      color: white;
+    }
+    .game-over-title {
+      font-size: 36px;
+      margin-bottom: 20px;
+      color: #ff0000;
+    }
+    .final-score {
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+    .input-container {
+      margin-bottom: 20px;
+    }
+    .input-container input {
+      padding: 8px;
+      margin-right: 10px;
+      border-radius: 4px;
+      border: none;
+    }
+    .input-container button {
+      padding: 8px 16px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .restart-text {
+      font-size: 18px;
+      color: #888;
+    }
+    #leaderboard {
+      position: fixed;
+      right: 20px;
+      top: 20px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 15px;
+      border-radius: 8px;
+      color: white;
+    }
+    #leaderboard h2 {
+      margin-top: 0;
+    }
+    #leaderboard-list {
+      list-style: none;
+      padding: 0;
+    }
+    #leaderboard-list li {
+      margin: 5px 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="leaderboard">
+    <h2>Leaderboard</h2>
+    <ul id="leaderboard-list"></ul>
+  </div>
+  <script src="sketch.js"></script>
+</body>
+</html>
