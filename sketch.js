@@ -1257,16 +1257,14 @@ function touchStarted() {
     touchStartY = mouseY;
     isTouching = true;
     
-    // Shoot when touching the top half of the screen
-    if (mouseY < height/2) {
-      let currentTime = millis();
-      if (currentTime - lastTouchShootTime > touchShootDelay) {
-        for (let i = 0; i < bulletCount; i++) {
-          let offset = (i - (bulletCount - 1) / 2) * 0.1;
-          bullets.push(new Bullet(player.x, player.y, -PI/2 + offset));
-        }
-        lastTouchShootTime = currentTime;
+    // Shoot whenever touching the screen
+    let currentTime = millis();
+    if (currentTime - lastTouchShootTime > touchShootDelay) {
+      for (let i = 0; i < bulletCount; i++) {
+        let offset = (i - (bulletCount - 1) / 2) * 0.1;
+        bullets.push(new Bullet(player.x, player.y, -PI/2 + offset));
       }
+      lastTouchShootTime = currentTime;
     }
     return false;
   }
@@ -1286,16 +1284,14 @@ function touchMoved() {
     touchStartX = mouseX;
     touchStartY = mouseY;
     
-    // Shoot when touching the top half of the screen
-    if (mouseY < height/2) {
-      let currentTime = millis();
-      if (currentTime - lastTouchShootTime > touchShootDelay) {
-        for (let i = 0; i < bulletCount; i++) {
-          let offset = (i - (bulletCount - 1) / 2) * 0.1;
-          bullets.push(new Bullet(player.x, player.y, -PI/2 + offset));
-        }
-        lastTouchShootTime = currentTime;
+    // Shoot while moving
+    let currentTime = millis();
+    if (currentTime - lastTouchShootTime > touchShootDelay) {
+      for (let i = 0; i < bulletCount; i++) {
+        let offset = (i - (bulletCount - 1) / 2) * 0.1;
+        bullets.push(new Bullet(player.x, player.y, -PI/2 + offset));
       }
+      lastTouchShootTime = currentTime;
     }
     return false;
   }
