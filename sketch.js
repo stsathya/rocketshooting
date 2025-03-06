@@ -74,10 +74,17 @@ function draw() {
     ellipse(star.x, star.y, 2, 2);
   }
 
-  // Only update player position if touching
-  if (isTouching) {
-    player.x = mouseX;
-    player.y = mouseY;
+  // Handle player movement
+  if (!gameOver) {
+    if (isTouching) {
+      // Touch controls
+      player.x = mouseX;
+      player.y = mouseY;
+    } else {
+      // Mouse movement (direct, no lag)
+      player.x = mouseX;
+      player.y = mouseY;
+    }
   }
 
   // Update and show the player
@@ -427,10 +434,6 @@ class Player {
   }
 
   update() {
-    if (!isTouching) {
-      this.x += this.hspeed * this.speed;
-      this.y += this.vspeed * this.speed;
-    }
     // Constrain player within the canvas
     this.x = constrain(this.x, 20, width - 20);
     this.y = constrain(this.y, 20, height - 20);
