@@ -246,6 +246,14 @@
       margin: 5px 0;
     }
   </style>
+  <!-- Supabase Dependencies -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
+  <script>
+    // Initialize Supabase client
+    const supabaseUrl = 'https://cnehzbwiaijugbmeerph.supabase.co'
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNuZWh6YndpYWlqdWdibWVlcnBoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEyNzEzNTcsImV4cCI6MjA1Njg0NzM1N30.DwxU0I7a1DlYysGxuAD_e-aFYdGnNcY7kGl9VnhmguA'
+    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey)
+  </script>
 </head>
 <body>
   <div id="game-container">

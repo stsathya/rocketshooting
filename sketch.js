@@ -73,6 +73,9 @@ function setup() {
     stars.push({ x: x, y: y, brightness: brightness });
   }
   
+  // Initialize leaderboard
+  initializeLeaderboard();
+  
   // Start animation loop for background only
   loop();
 }
@@ -358,26 +361,115 @@ function returnToHome() {
   resetGame();
 }
 
-function submitScore() {
+// Update submitScore function to use Supabase
+async function submitScore() {
   const email = emailInput.value();
-  leaderboard.push({ email: email, score: score });
-  leaderboard.sort((a, b) => b.score - a.score); // Sort leaderboard by score
-  updateLeaderboardDisplay();
-  if (gameOverDiv) {
-    gameOverDiv.remove();
-    gameOverDiv = null;
+  
+  if (!email || !email.includes('@')) {
+    alert('Please enter a valid email address');
+    return;
   }
-  resetGame();
+
+  try {
+    // Show loading state
+    const submitButton = select('.game-over-button');
+    submitButton.html('Submitting...');
+    submitButton.attribute('disabled', '');
+
+    console.log('Attempting to submit score:', { email, score });
+
+    // Insert score into Supabase
+    const { data, error } = await supabase
+      .from('leaderboard')
+      .insert([
+        { email: email, score: score }
+      ])
+      .select();
+
+    console.log('Supabase response:', { data, error });
+
+    if (error) {
+      console.error('Supabase error:', error);
+      throw error;
+    }
+
+    // Update local leaderboard
+    await updateLeaderboard();
+    
+    // Show success message
+    alert('Score submitted successfully!');
+    
+    // Clean up and reset
+    if (gameOverDiv) {
+      gameOverDiv.remove();
+      gameOverDiv = null;
+    }
+    resetGame();
+
+  } catch (error) {
+    console.error('Error submitting score:', error);
+    alert('Failed to submit score. Please try again. Error: ' + error.message);
+    
+    // Reset submit button
+    const submitButton = select('.game-over-button');
+    submitButton.html('Submit');
+    submitButton.removeAttribute('disabled');
+  }
 }
 
-function updateLeaderboardDisplay() {
-  const leaderboardList = document.getElementById('leaderboard-list');
-  leaderboardList.innerHTML = ''; // Clear existing entries
-  leaderboard.forEach(entry => {
-    const li = document.createElement('li');
-    li.textContent = `${entry.email}: ${entry.score}`;
-    leaderboardList.appendChild(li);
-  });
+// Function to fetch and update leaderboard
+async function updateLeaderboard() {
+  try {
+    // Fetch top 10 scores
+    const { data, error } = await supabase
+      .from('leaderboard')
+      .select('email, score')
+      .order('score', { ascending: false })
+      .limit(10);
+
+    if (error) throw error;
+
+    // Update leaderboard display
+    const leaderboardList = document.getElementById('leaderboard-list');
+    leaderboardList.innerHTML = ''; // Clear existing entries
+    
+    data.forEach((entry, index) => {
+      const li = document.createElement('li');
+      li.textContent = `${index + 1}. ${entry.email}: ${entry.score}`;
+      leaderboardList.appendChild(li);
+    });
+
+  } catch (error) {
+    console.error('Error updating leaderboard:', error);
+  }
+}
+
+// Add function to initialize leaderboard
+async function initializeLeaderboard() {
+  // Create leaderboard container if it doesn't exist
+  if (!document.getElementById('leaderboard')) {
+    const leaderboardDiv = document.createElement('div');
+    leaderboardDiv.id = 'leaderboard';
+    leaderboardDiv.innerHTML = `
+      <h2>Top Scores</h2>
+      <ul id="leaderboard-list"></ul>
+    `;
+    document.body.appendChild(leaderboardDiv);
+  }
+  
+  // Initial leaderboard update
+  await updateLeaderboard();
+  
+  // Set up real-time subscription for leaderboard updates
+  const leaderboardSubscription = supabase
+    .channel('leaderboard_changes')
+    .on('postgres_changes', 
+      { event: '*', schema: 'public', table: 'leaderboard' },
+      () => {
+        updateLeaderboard();
+      }
+    )
+    .subscribe();
 }
 
 // ===== Player Class =====
