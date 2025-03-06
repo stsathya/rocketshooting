@@ -37,6 +37,13 @@ let powerUpTimers = {
   speedBoost: 0
 };
 
+// Add touch control variables
+let touchStartX = 0;
+let touchStartY = 0;
+let isTouching = false;
+let lastTouchShootTime = 0;
+let touchShootDelay = 250; // Minimum delay between touch shots in milliseconds
+
 function setup() {
   createCanvas(600, 800);
   player = new Player(width / 2, height - 50);
@@ -415,11 +422,18 @@ class Player {
     this.hspeed = 0;
     this.vspeed = 0;
     this.speed = 5;
+    this.touchTarget = { x: x, y: y }; // Add touch target position
   }
 
   update() {
-    this.x += this.hspeed * this.speed;
-    this.y += this.vspeed * this.speed;
+    if (isTouching) {
+      // Move towards touch position with smooth interpolation
+      this.x = lerp(this.x, mouseX, 0.1);
+      this.y = lerp(this.y, mouseY, 0.1);
+    } else {
+      this.x += this.hspeed * this.speed;
+      this.y += this.vspeed * this.speed;
+    }
     // Constrain player within the canvas
     this.x = constrain(this.x, 20, width - 20);
     this.y = constrain(this.y, 20, height - 20);
@@ -1235,4 +1249,63 @@ function resetGame() {
   boss = null;
   bossSpawned = false;
   bossWarningTimer = 0;
+}
+
+function touchStarted() {
+  if (!gameOver) {
+    touchStartX = mouseX;
+    touchStartY = mouseY;
+    isTouching = true;
+    
+    // Shoot when touching the top half of the screen
+    if (mouseY < height/2) {
+      let currentTime = millis();
+      if (currentTime - lastTouchShootTime > touchShootDelay) {
+        for (let i = 0; i < bulletCount; i++) {
+          let offset = (i - (bulletCount - 1) / 2) * 0.1;
+          bullets.push(new Bullet(player.x, player.y, -PI/2 + offset));
+        }
+        lastTouchShootTime = currentTime;
+      }
+    }
+    return false;
+  }
+}
+
+function touchMoved() {
+  if (!gameOver && isTouching) {
+    // Calculate movement based on touch drag
+    let dx = mouseX - touchStartX;
+    let dy = mouseY - touchStartY;
+    
+    // Update player direction based on touch movement
+    player.setDir(dx !== 0 ? Math.sign(dx) : 0);
+    player.setVerticalDir(dy !== 0 ? Math.sign(dy) : 0);
+    
+    // Update touch start position for next frame
+    touchStartX = mouseX;
+    touchStartY = mouseY;
+    
+    // Shoot when touching the top half of the screen
+    if (mouseY < height/2) {
+      let currentTime = millis();
+      if (currentTime - lastTouchShootTime > touchShootDelay) {
+        for (let i = 0; i < bulletCount; i++) {
+          let offset = (i - (bulletCount - 1) / 2) * 0.1;
+          bullets.push(new Bullet(player.x, player.y, -PI/2 + offset));
+        }
+        lastTouchShootTime = currentTime;
+      }
+    }
+    return false;
+  }
+}
+
+function touchEnded() {
+  if (!gameOver) {
+    isTouching = false;
+    player.setDir(0);
+    player.setVerticalDir(0);
+    return false;
+  }
 }
