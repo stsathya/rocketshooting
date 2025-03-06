@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Rocket Shooting Game</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
   <style>
@@ -10,10 +10,6 @@
       margin: 0;
       padding: 0;
       box-sizing: border-box;
-      touch-action: none;
-      -webkit-touch-callout: none;
-      -webkit-user-select: none;
-      user-select: none;
     }
     
     body {
@@ -24,7 +20,6 @@
       width: 100vw;
       background-color: #000;
       overflow: hidden;
-      touch-action: none;
       margin: 0;
       padding: 0;
     }
@@ -36,7 +31,6 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      touch-action: none;
     }
 
     canvas {
@@ -44,7 +38,6 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      touch-action: none;
     }
 
     #game-over {
@@ -104,7 +97,6 @@
       border: none;
       border-radius: 5px;
       cursor: pointer;
-      touch-action: manipulation;
       min-width: 120px;
     }
 
@@ -140,18 +132,5 @@
     </div>
   </div>
   <script src="sketch.js"></script>
-  <script>
-    document.addEventListener('touchstart', function(e) {
-      e.preventDefault();
-    }, { passive: false });
-    
-    document.addEventListener('touchmove', function(e) {
-      e.preventDefault();
-    }, { passive: false });
-    
-    document.addEventListener('touchend', function(e) {
-      e.preventDefault();
-    }, { passive: false });
-  </script>
 </body>
 </html>
