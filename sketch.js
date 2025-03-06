@@ -1447,17 +1447,32 @@ function resetGame() {
 }
 
 function touchStarted(event) {
+  // Check if we're clicking the play button on home screen
   if (!gameStarted) {
-    return false;
+    let playButton = document.querySelector('#play-button');
+    if (playButton && playButton.contains(event.target)) {
+      return; // Let the click/touch go through to the button
+    }
   }
   
-  if (!gameOver) {
+  if (gameStarted && !gameOver) {
     isTouching = true;
+    let canvasRect = document.querySelector('canvas').getBoundingClientRect();
+    let touchX, touchY;
+    
+    // Handle both touch and mouse events
     if (touches && touches.length > 0) {
-      // Get the touch position relative to the canvas
-      let canvasRect = document.querySelector('canvas').getBoundingClientRect();
-      let touchX = touches[0].clientX - canvasRect.left;
-      let touchY = touches[0].clientY - canvasRect.top;
+      touchX = touches[0].clientX - canvasRect.left;
+      touchY = touches[0].clientY - canvasRect.top;
+    } else if (event.clientX) {
+      touchX = event.clientX - canvasRect.left;
+      touchY = event.clientY - canvasRect.top;
+    }
+    
+    if (touchX !== undefined && touchY !== undefined) {
+      // Scale touch coordinates if canvas is scaled
+      touchX = map(touchX, 0, canvasRect.width, 0, width);
+      touchY = map(touchY, 0, canvasRect.height, 0, height);
       
       // Update player position
       player.x = constrain(touchX, 20, width - 20);
@@ -1482,11 +1497,22 @@ function touchMoved(event) {
     return false;
   }
   
+  let canvasRect = document.querySelector('canvas').getBoundingClientRect();
+  let touchX, touchY;
+  
+  // Handle both touch and mouse events
   if (touches && touches.length > 0) {
-    // Get the touch position relative to the canvas
-    let canvasRect = document.querySelector('canvas').getBoundingClientRect();
-    let touchX = touches[0].clientX - canvasRect.left;
-    let touchY = touches[0].clientY - canvasRect.top;
+    touchX = touches[0].clientX - canvasRect.left;
+    touchY = touches[0].clientY - canvasRect.top;
+  } else if (event.clientX) {
+    touchX = event.clientX - canvasRect.left;
+    touchY = event.clientY - canvasRect.top;
+  }
+  
+  if (touchX !== undefined && touchY !== undefined) {
+    // Scale touch coordinates if canvas is scaled
+    touchX = map(touchX, 0, canvasRect.width, 0, width);
+    touchY = map(touchY, 0, canvasRect.height, 0, height);
     
     // Update player position
     player.x = constrain(touchX, 20, width - 20);
