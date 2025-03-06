@@ -1409,11 +1409,6 @@ function createGameOverOverlay() {
   buttonContainer.class('button-container');
   buttonContainer.parent(content);
   
-  let homeButton = createButton('Home');
-  homeButton.class('game-over-button');
-  homeButton.mousePressed(resetGame);
-  homeButton.parent(buttonContainer);
-  
   let restartButton = createButton('Play Again');
   restartButton.class('game-over-button');
   restartButton.mousePressed(resetGame);
