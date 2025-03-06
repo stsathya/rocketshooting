@@ -73,9 +73,6 @@ function setup() {
     stars.push({ x: x, y: y, brightness: brightness });
   }
   
-  // Initialize leaderboard
-  initializeLeaderboard();
-  
   // Start animation loop for background only
   loop();
 }
@@ -344,10 +341,13 @@ function draw() {
 
 // Update startGame function
 function startGame() {
-  gameStarted = true;
-  homeScreen.style('display', 'none');
-  resetGame();
-  loop();
+  // Check if the event is from a touch
+  if (mouseX >= 0 && mouseX <= width && mouseY >= 0 && mouseY <= height) {
+    gameStarted = true;
+    homeScreen.style('display', 'none');
+    resetGame();
+    loop();
+  }
 }
 
 // Update returnToHome function
@@ -361,7 +361,7 @@ function returnToHome() {
   resetGame();
 }
 
-// Update submitScore function to use Supabase
+// Update submitScore function to remove leaderboard functionality
 async function submitScore() {
   const email = emailInput.value();
   
@@ -376,25 +376,17 @@ async function submitScore() {
     submitButton.html('Submitting...');
     submitButton.attribute('disabled', '');
 
-    console.log('Attempting to submit score:', { email, score });
-
     // Insert score into Supabase
     const { data, error } = await supabase
       .from('leaderboard')
       .insert([
         { email: email, score: score }
-      ])
-      .select();
-
-    console.log('Supabase response:', { data, error });
+      ]);
 
     if (error) {
       console.error('Supabase error:', error);
       throw error;
     }
-
-    // Update local leaderboard
-    await updateLeaderboard();
     
     // Show success message
     alert('Score submitted successfully!');
@@ -415,61 +407,6 @@ async function submitScore() {
     submitButton.html('Submit');
     submitButton.removeAttribute('disabled');
   }
-}
-
-// Function to fetch and update leaderboard
-async function updateLeaderboard() {
-  try {
-    // Fetch top 10 scores
-    const { data, error } = await supabase
-      .from('leaderboard')
-      .select('email, score')
-      .order('score', { ascending: false })
-      .limit(10);
-
-    if (error) throw error;
-
-    // Update leaderboard display
-    const leaderboardList = document.getElementById('leaderboard-list');
-    leaderboardList.innerHTML = ''; // Clear existing entries
-    
-    data.forEach((entry, index) => {
-      const li = document.createElement('li');
-      li.textContent = `${index + 1}. ${entry.email}: ${entry.score}`;
-      leaderboardList.appendChild(li);
-    });
-
-  } catch (error) {
-    console.error('Error updating leaderboard:', error);
-  }
-}
-
-// Add function to initialize leaderboard
-async function initializeLeaderboard() {
-  // Create leaderboard container if it doesn't exist
-  if (!document.getElementById('leaderboard')) {
-    const leaderboardDiv = document.createElement('div');
-    leaderboardDiv.id = 'leaderboard';
-    leaderboardDiv.innerHTML = `
-      <h2>Top Scores</h2>
-      <ul id="leaderboard-list"></ul>
-    `;
-    document.body.appendChild(leaderboardDiv);
-  }
-  
-  // Initial leaderboard update
-  await updateLeaderboard();
-  
-  // Set up real-time subscription for leaderboard updates
-  const leaderboardSubscription = supabase
-    .channel('leaderboard_changes')
-    .on('postgres_changes', 
-      { event: '*', schema: 'public', table: 'leaderboard' },
-      () => {
-        updateLeaderboard();
-      }
-    )
-    .subscribe();
 }
 
 // ===== Player Class =====
@@ -1534,15 +1471,16 @@ function touchStarted() {
       }
       lastTouchShootTime = currentTime;
     }
-    return false;
   }
+  // Prevent default touch behavior
+  return false;
 }
 
 function touchMoved() {
   if (!gameOver && isTouching) {
     // Direct position control
-    player.x = mouseX;
-    player.y = mouseY;
+    player.x = constrain(mouseX, 20, width - 20);
+    player.y = constrain(mouseY, 20, height - 20);
     
     // Always shoot while touching
     let currentTime = millis();
@@ -1553,15 +1491,15 @@ function touchMoved() {
       }
       lastTouchShootTime = currentTime;
     }
-    return false;
   }
+  // Prevent default touch behavior
+  return false;
 }
 
 function touchEnded() {
-  if (!gameOver) {
-    isTouching = false;
-    return false;
-  }
+  isTouching = false;
+  // Prevent default touch behavior
+  return false;
 }
 
 // Update mouseMoved function to handle mouse movement

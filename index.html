@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Rocket Shooting Game</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
   <style>
@@ -16,12 +16,14 @@
       justify-content: center;
       align-items: center;
       min-height: 100vh;
+      touch-action: none; /* Prevent default touch actions */
     }
 
     #game-container {
       position: relative;
       width: 600px;
       height: 800px;
+      touch-action: none; /* Prevent default touch actions */
     }
 
     canvas {
@@ -44,30 +46,6 @@
 
     .home-content {
       text-align: center;
-      padding: 2.5rem;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 20px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-      backdrop-filter: blur(4px);
-      -webkit-backdrop-filter: blur(4px);
-      animation: fadeIn 0.5s ease-out;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: scale(0.95); }
-      to { opacity: 1; transform: scale(1); }
-    }
-
-    .game-title {
-      color: #ffffff;
-      font-size: 4em;
-      margin-bottom: 2rem;
-      text-transform: uppercase;
-      font-weight: bold;
-      text-shadow: 0 0 20px rgba(255, 255, 255, 0.5),
-                   0 0 40px rgba(255, 0, 0, 0.3);
-      letter-spacing: 4px;
     }
 
     .play-button {
@@ -225,26 +203,6 @@
       margin-top: 1.5rem;
       animation: fadeIn 0.5s ease-out 0.6s backwards;
     }
-
-    #leaderboard {
-      position: fixed;
-      right: 20px;
-      top: 20px;
-      background: rgba(0, 0, 0, 0.7);
-      padding: 15px;
-      border-radius: 8px;
-      color: white;
-    }
-    #leaderboard h2 {
-      margin-top: 0;
-    }
-    #leaderboard-list {
-      list-style: none;
-      padding: 0;
-    }
-    #leaderboard-list li {
-      margin: 5px 0;
-    }
   </style>
   <!-- Supabase Dependencies -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
@@ -258,12 +216,10 @@
 <body>
   <div id="game-container">
     <div id="home-screen">
-      <button class="play-button" onclick="startGame()">Play</button>
+      <div class="home-content">
+        <button class="play-button" onclick="startGame()">Play</button>
+      </div>
     </div>
-  </div>
-  <div id="leaderboard">
-    <h2>Leaderboard</h2>
-    <ul id="leaderboard-list"></ul>
   </div>
   <script src="sketch.js"></script>
 </body>
