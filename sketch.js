@@ -428,14 +428,6 @@ class Player {
       this.targetX = this.x;
       this.targetY = this.y;
     }
-
-    // Update position based on mouse/touch if touching
-    if (isTouching) {
-      this.x = mouseX;
-      this.y = mouseY;
-      this.targetX = this.x;
-      this.targetY = this.y;
-    }
     
     // Constrain player within the canvas
     this.x = constrain(this.x, 20, width - 20);
@@ -1455,41 +1447,50 @@ function resetGame() {
 }
 
 function touchStarted(event) {
-  // Prevent default touch behavior
-  event.preventDefault();
-  
   if (!gameStarted) {
-    // If on home screen, check if touch is on play button
-    // The play button handling is in the HTML/CSS
     return false;
   }
   
   if (!gameOver) {
     isTouching = true;
-    touchStartX = touches[0].x;
-    touchStartY = touches[0].y;
-    
-    // Shoot when touch starts
-    let currentTime = millis();
-    if (currentTime - lastTouchShootTime > touchShootDelay) {
-      for (let i = 0; i < bulletCount; i++) {
-        let offset = (i - (bulletCount - 1) / 2) * 0.1;
-        bullets.push(new Bullet(player.x, player.y, -PI/2 + offset));
+    if (touches && touches.length > 0) {
+      // Get the touch position relative to the canvas
+      let canvasRect = document.querySelector('canvas').getBoundingClientRect();
+      let touchX = touches[0].clientX - canvasRect.left;
+      let touchY = touches[0].clientY - canvasRect.top;
+      
+      // Update player position
+      player.x = constrain(touchX, 20, width - 20);
+      player.y = constrain(touchY, 20, height - 20);
+      
+      // Shoot when touch starts
+      let currentTime = millis();
+      if (currentTime - lastTouchShootTime > touchShootDelay) {
+        for (let i = 0; i < bulletCount; i++) {
+          let offset = (i - (bulletCount - 1) / 2) * 0.1;
+          bullets.push(new Bullet(player.x, player.y, -PI/2 + offset));
+        }
+        lastTouchShootTime = currentTime;
       }
-      lastTouchShootTime = currentTime;
     }
   }
   return false;
 }
 
 function touchMoved(event) {
-  // Prevent default touch behavior
-  event.preventDefault();
+  if (!gameStarted || gameOver) {
+    return false;
+  }
   
-  if (!gameOver && isTouching && touches.length > 0) {
-    // Update player position based on touch position
-    player.x = constrain(touches[0].x, 20, width - 20);
-    player.y = constrain(touches[0].y, 20, height - 20);
+  if (touches && touches.length > 0) {
+    // Get the touch position relative to the canvas
+    let canvasRect = document.querySelector('canvas').getBoundingClientRect();
+    let touchX = touches[0].clientX - canvasRect.left;
+    let touchY = touches[0].clientY - canvasRect.top;
+    
+    // Update player position
+    player.x = constrain(touchX, 20, width - 20);
+    player.y = constrain(touchY, 20, height - 20);
     
     // Continue shooting while touching
     let currentTime = millis();
@@ -1505,8 +1506,6 @@ function touchMoved(event) {
 }
 
 function touchEnded(event) {
-  // Prevent default touch behavior
-  event.preventDefault();
   isTouching = false;
   return false;
 }
