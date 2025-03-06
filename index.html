@@ -3,60 +3,229 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rocket Shooting Game v1.1</title>
+  <title>Rocket Shooting Game</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
   <style>
-    /* Remove default margin and padding, and set a black background */
     body {
       margin: 0;
+      padding: 0;
+      background: #000;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
       display: flex;
       justify-content: center;
       align-items: center;
       min-height: 100vh;
-      background: #000;
-      font-family: Arial, sans-serif;
     }
-    .game-over-overlay {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(0, 0, 0, 0.8);
-      padding: 20px;
-      border-radius: 10px;
+
+    #game-container {
+      position: relative;
+      width: 600px;
+      height: 800px;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    #home-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .home-content {
       text-align: center;
+      padding: 2.5rem;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .game-title {
+      color: #ffffff;
+      font-size: 4em;
+      margin-bottom: 2rem;
+      text-transform: uppercase;
+      font-weight: bold;
+      text-shadow: 0 0 20px rgba(255, 255, 255, 0.5),
+                   0 0 40px rgba(255, 0, 0, 0.3);
+      letter-spacing: 4px;
+    }
+
+    .play-button {
+      background: linear-gradient(45deg, #ff3366, #ff6b6b);
       color: white;
-    }
-    .game-over-title {
-      font-size: 36px;
-      margin-bottom: 20px;
-      color: #ff0000;
-    }
-    .final-score {
-      font-size: 24px;
-      margin-bottom: 20px;
-    }
-    .input-container {
-      margin-bottom: 20px;
-    }
-    .input-container input {
-      padding: 8px;
-      margin-right: 10px;
-      border-radius: 4px;
+      font-size: 1.8em;
+      padding: 1rem 4rem;
       border: none;
-    }
-    .input-container button {
-      padding: 8px 16px;
-      background: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 4px;
+      border-radius: 50px;
       cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      font-weight: bold;
+      letter-spacing: 4px;
+      box-shadow: 0 5px 20px rgba(255, 51, 102, 0.4),
+                  0 0 30px rgba(255, 51, 102, 0.2);
+      animation: pulse 2s infinite;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     }
-    .restart-text {
-      font-size: 18px;
-      color: #888;
+
+    @keyframes pulse {
+      0% { transform: scale(1); box-shadow: 0 5px 20px rgba(255, 51, 102, 0.4), 0 0 30px rgba(255, 51, 102, 0.2); }
+      50% { transform: scale(1.05); box-shadow: 0 8px 25px rgba(255, 51, 102, 0.6), 0 0 40px rgba(255, 51, 102, 0.4); }
+      100% { transform: scale(1); box-shadow: 0 5px 20px rgba(255, 51, 102, 0.4), 0 0 30px rgba(255, 51, 102, 0.2); }
     }
+
+    .play-button:hover {
+      transform: translateY(-3px) scale(1.05);
+      box-shadow: 0 8px 25px rgba(255, 51, 102, 0.6),
+                  0 0 50px rgba(255, 51, 102, 0.4);
+      background: linear-gradient(45deg, #ff6b6b, #ff3366);
+      animation: none;
+    }
+
+    .play-button:active {
+      transform: translateY(1px) scale(0.98);
+    }
+
+    /* Game over overlay styles */
+    .game-over-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .game-over-title {
+      font-size: 3em;
+      color: white;
+      text-transform: uppercase;
+      font-weight: bold;
+      text-shadow: 0 0 20px rgba(255, 51, 102, 0.5),
+                   0 0 40px rgba(255, 51, 102, 0.3);
+      letter-spacing: 4px;
+      margin-bottom: 0.8rem;
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    .final-score {
+      font-size: 1.6em;
+      color: white;
+      margin-bottom: 1.5rem;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      animation: fadeIn 0.5s ease-out 0.2s backwards;
+    }
+
+    .game-over-button {
+      background: linear-gradient(45deg, #ff3366, #ff6b6b);
+      color: white;
+      font-size: 1.2em;
+      padding: 0.6rem 2rem;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      font-weight: bold;
+      letter-spacing: 3px;
+      box-shadow: 0 5px 20px rgba(255, 51, 102, 0.4),
+                  0 0 30px rgba(255, 51, 102, 0.2);
+      margin: 0.4rem;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      animation: buttonFadeIn 0.5s ease-out backwards;
+    }
+
+    @keyframes buttonFadeIn {
+      from { 
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to { 
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .game-over-button:hover {
+      transform: translateY(-3px) scale(1.05);
+      box-shadow: 0 8px 25px rgba(255, 51, 102, 0.6),
+                  0 0 50px rgba(255, 51, 102, 0.4);
+      background: linear-gradient(45deg, #ff6b6b, #ff3366);
+      animation: none;
+    }
+
+    .game-over-button:active {
+      transform: translateY(1px) scale(0.98);
+    }
+
+    .input-container {
+      margin: 1.5rem 0;
+      animation: fadeIn 0.5s ease-out 0.4s backwards;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.8rem;
+    }
+
+    .input-container input {
+      padding: 0.8rem 1.5rem;
+      border-radius: 50px;
+      border: none;
+      font-size: 1em;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      width: 250px;
+      transition: all 0.3s ease;
+    }
+
+    .input-container input:focus {
+      outline: none;
+      background: rgba(255, 255, 255, 0.15);
+      box-shadow: 0 4px 20px rgba(255, 51, 102, 0.2);
+      border-color: rgba(255, 51, 102, 0.4);
+    }
+
+    .input-container input::placeholder {
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .button-container {
+      display: flex;
+      gap: 0.8rem;
+      justify-content: center;
+      margin-top: 1.5rem;
+      animation: fadeIn 0.5s ease-out 0.6s backwards;
+    }
+
     #leaderboard {
       position: fixed;
       right: 20px;
@@ -79,6 +248,11 @@
   </style>
 </head>
 <body>
+  <div id="game-container">
+    <div id="home-screen">
+      <button class="play-button" onclick="startGame()">Play</button>
+    </div>
+  </div>
   <div id="leaderboard">
     <h2>Leaderboard</h2>
     <ul id="leaderboard-list"></ul>
