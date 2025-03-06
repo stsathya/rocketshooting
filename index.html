@@ -6,6 +6,13 @@
   <title>Rocket Shooting Game</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
   <style>
+    * {
+      touch-action: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    
     body {
       margin: 0;
       padding: 0;
@@ -16,14 +23,15 @@
       justify-content: center;
       align-items: center;
       min-height: 100vh;
-      touch-action: none; /* Prevent default touch actions */
+      touch-action: none;
+      -webkit-overflow-scrolling: none;
     }
 
     #game-container {
       position: relative;
       width: 600px;
       height: 800px;
-      touch-action: none; /* Prevent default touch actions */
+      touch-action: none;
     }
 
     canvas {
@@ -217,10 +225,24 @@
   <div id="game-container">
     <div id="home-screen">
       <div class="home-content">
-        <button class="play-button" onclick="startGame()">Play</button>
+        <button class="play-button" ontouchstart="startGame()" onclick="startGame()">Play</button>
       </div>
     </div>
   </div>
   <script src="sketch.js"></script>
+  <script>
+    // Prevent default touch behaviors
+    document.addEventListener('touchstart', function(e) {
+      e.preventDefault();
+    }, { passive: false });
+    
+    document.addEventListener('touchmove', function(e) {
+      e.preventDefault();
+    }, { passive: false });
+    
+    document.addEventListener('touchend', function(e) {
+      e.preventDefault();
+    }, { passive: false });
+  </script>
 </body>
 </html>

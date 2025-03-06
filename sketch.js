@@ -341,13 +341,11 @@ function draw() {
 
 // Update startGame function
 function startGame() {
-  // Check if the event is from a touch
-  if (mouseX >= 0 && mouseX <= width && mouseY >= 0 && mouseY <= height) {
-    gameStarted = true;
-    homeScreen.style('display', 'none');
-    resetGame();
-    loop();
-  }
+  // Start game regardless of input type
+  gameStarted = true;
+  homeScreen.style('display', 'none');
+  resetGame();
+  loop();
 }
 
 // Update returnToHome function
@@ -1456,13 +1454,22 @@ function resetGame() {
   bossWarningTimer = 0;
 }
 
-function touchStarted() {
+function touchStarted(event) {
+  // Prevent default touch behavior
+  event.preventDefault();
+  
+  if (!gameStarted) {
+    // If on home screen, check if touch is on play button
+    // The play button handling is in the HTML/CSS
+    return false;
+  }
+  
   if (!gameOver) {
-    touchStartX = mouseX;
-    touchStartY = mouseY;
     isTouching = true;
+    touchStartX = touches[0].x;
+    touchStartY = touches[0].y;
     
-    // Always shoot when touching
+    // Shoot when touch starts
     let currentTime = millis();
     if (currentTime - lastTouchShootTime > touchShootDelay) {
       for (let i = 0; i < bulletCount; i++) {
@@ -1472,17 +1479,19 @@ function touchStarted() {
       lastTouchShootTime = currentTime;
     }
   }
-  // Prevent default touch behavior
   return false;
 }
 
-function touchMoved() {
-  if (!gameOver && isTouching) {
-    // Direct position control
-    player.x = constrain(mouseX, 20, width - 20);
-    player.y = constrain(mouseY, 20, height - 20);
+function touchMoved(event) {
+  // Prevent default touch behavior
+  event.preventDefault();
+  
+  if (!gameOver && isTouching && touches.length > 0) {
+    // Update player position based on touch position
+    player.x = constrain(touches[0].x, 20, width - 20);
+    player.y = constrain(touches[0].y, 20, height - 20);
     
-    // Always shoot while touching
+    // Continue shooting while touching
     let currentTime = millis();
     if (currentTime - lastTouchShootTime > touchShootDelay) {
       for (let i = 0; i < bulletCount; i++) {
@@ -1492,13 +1501,13 @@ function touchMoved() {
       lastTouchShootTime = currentTime;
     }
   }
-  // Prevent default touch behavior
   return false;
 }
 
-function touchEnded() {
+function touchEnded(event) {
+  // Prevent default touch behavior
+  event.preventDefault();
   isTouching = false;
-  // Prevent default touch behavior
   return false;
 }
 
