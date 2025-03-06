@@ -44,13 +44,20 @@ let isTouching = false;
 let lastTouchShootTime = 0;
 let touchShootDelay = 250; // Minimum delay between touch shots in milliseconds
 
+// Add at the beginning with other global variables
+let explosionParticles = [];
+let gameOverAnimationStarted = false;
+let gameOverAnimationTimer = 0;
+
 function setup() {
-  createCanvas(600, 800);
-  player = new Player(width / 2, height - 50);
+  let canvas = createCanvas(600, 800);
+  canvas.parent('game-container');
+  
+  // Initialize player and game settings
+  player = new Player(width/2, height - 50);
   frameRate(60);
   
-  // Generate stars once with a fixed seed for consistency
-  randomSeed(99);
+  // Generate stars
   for (let i = 0; i < 100; i++) {
     let x = random(width);
     let y = random(height);
@@ -62,9 +69,9 @@ function setup() {
 function draw() {
   background(10);
   
-  // Animate the stars to move downward
+  // Animate stars with parallax effect
   for (let star of stars) {
-    star.y += 1;
+    star.y += star.brightness / 255 * 2;
     if (star.y > height) {
       star.y = 0;
       star.x = random(width);
@@ -74,89 +81,113 @@ function draw() {
     ellipse(star.x, star.y, 2, 2);
   }
 
-  // Handle player movement
   if (!gameOver) {
-    if (isTouching) {
-      // Touch controls
-      player.x = mouseX;
-      player.y = mouseY;
-    } else {
-      // Mouse movement (direct, no lag)
-      player.x = mouseX;
-      player.y = mouseY;
-    }
-  }
+    // Game logic here
+    player.update();
+    player.show();
 
-  // Update and show the player
-  player.update();
-  player.show();
-
-  // Update and display power-ups
-  for (let i = powerUps.length - 1; i >= 0; i--) {
-    powerUps[i].update();
-    powerUps[i].show();
-
-    // Remove power-ups that have left the screen
-    if (powerUps[i].offscreen()) {
-      powerUps.splice(i, 1);
-      continue;
+    // Only spawn obstacles if boss is not active
+    if (!boss && !bossWarningTimer && frameCount % spawnInterval === 0) {
+      obstacles.push(new Obstacle());
     }
 
-    // Check if player collects the power-up
-    if (powerUps[i].hits(player)) {
-      powerUps[i].applyEffect();
-      // Create collection effect
-      for(let j = 0; j < 10; j++) {
-        particles.push(new Particle(powerUps[i].x, powerUps[i].y, 'powerup'));
+    // Update and show bullets
+    for (let bullet of bullets) {
+      bullet.update();
+      bullet.show();
+      
+      // Check if enemy bullet hits player
+      if (bullet.isEnemyBullet && !powerUpEffects.shield) {
+        let d = dist(bullet.x, bullet.y, player.x, player.y);
+        if (d < 20) { // Player hit radius
+          player.destroyed = true;
+          createRocketExplosion(player.x, player.y);
+          gameOver = true;
+          gameOverAnimationStarted = true;
+          gameOverAnimationTimer = 60; // 1 second animation
+          break;
+        }
       }
-      powerUps.splice(i, 1);
     }
-  }
+    bullets = bullets.filter(bullet => !bullet.offscreen());
 
-  // Update and display bullets
-  for (let i = bullets.length - 1; i >= 0; i--) {
-    bullets[i].update();
-    bullets[i].show();
-
-    // Remove bullets that have left the screen
-    if (bullets[i].offscreen()) {
-      bullets.splice(i, 1);
-      continue;
+    // Update and show obstacles
+    for (let obstacle of obstacles) {
+      obstacle.update();
+      obstacle.show();
+      
+      // Check collision with player
+      if (!powerUpEffects.shield && obstacle.hits(player)) {
+        player.destroyed = true;
+        createRocketExplosion(player.x, player.y);
+        gameOver = true;
+        gameOverAnimationStarted = true;
+        gameOverAnimationTimer = 60; // 1 second animation
+      }
     }
+    obstacles = obstacles.filter(obstacle => !obstacle.offscreen());
 
-    if (!bullets[i].isEnemyBullet) {
-      // Player bullets can hit obstacles and boss
+    // Check bullet collisions
+    for (let i = bullets.length - 1; i >= 0; i--) {
+      // Check collision with boss
+      if (boss && !bullets[i].isEnemyBullet) {
+        let d = dist(bullets[i].x, bullets[i].y, boss.x, boss.y);
+        if (d < boss.size/2) {
+          // Create hit effect
+          for (let k = 0; k < 10; k++) {
+            particles.push(new Particle(bullets[i].x, bullets[i].y, 'explosion'));
+          }
+          if (boss.hit()) {
+            // Boss defeated
+            score += 50;
+            boss = null;
+            bossSpawned = false;
+            level++;
+            levelProgress = 0;
+            levelThreshold = 10 + (level * 2); // Increase threshold with each level
+            spawnInterval = max(20, 60 - (level * 5)); // Speed up obstacle spawning
+          }
+          bullets.splice(i, 1);
+          continue;
+        }
+      }
+
       // Check collision with obstacles
       for (let j = obstacles.length - 1; j >= 0; j--) {
         if (dist(bullets[i].x, bullets[i].y, obstacles[j].x, obstacles[j].y) < obstacles[j].size) {
-          // Enhanced hit effects
-          for(let k = 0; k < 15; k++) {
-            particles.push(new Particle(obstacles[j].x, obstacles[j].y, 'shield'));
+          // Enhanced hit effect
+          for (let k = 0; k < 15; k++) { // Increased from 10 to 15 particles
+            let particle = new Particle(obstacles[j].x, obstacles[j].y, 'explosion');
+            particle.size = random(8, 14); // Increased size from default (6, 12)
+            particle.vx = random(-10, 10); // Increased velocity spread
+            particle.vy = random(-10, 10);
+            particles.push(particle);
           }
-          for(let k = 0; k < 8; k++) {
-            particles.push(new Particle(obstacles[j].x, obstacles[j].y, 'explosion'));
+          // Add some bright sparks for extra effect
+          for (let k = 0; k < 8; k++) {
+            let spark = new Particle(obstacles[j].x, obstacles[j].y, 'spark');
+            spark.size = random(2, 4);
+            particles.push(spark);
           }
+          score += 1;
+          levelProgress++;
           
-          // Update combo system
+          // Update combo
           let currentTime = millis();
-          if (currentTime - lastHitTime < 1000) { // If hit within 1 second
+          if (currentTime - lastHitTime < 1000) {
             combo++;
-            comboTimer = 60;
           } else {
             combo = 1;
           }
           lastHitTime = currentTime;
+          comboTimer = 60;
           
-          // Calculate score with combo
-          score += combo;
-          
-          // Update level progress
-          levelProgress++;
-          if (levelProgress >= levelThreshold) {
-            level++;
-            levelProgress = 0;
-            levelThreshold += 5; // Increase threshold for next level
-            spawnInterval = max(20, 60 - (level * 5)); // Increase spawn rate with level
+          // Check for level completion
+          if (levelProgress >= levelThreshold && !boss && !bossSpawned) {
+            bossSpawned = true;
+            bossWarningTimer = 180; // 3 seconds warning
+            // Clear existing obstacles
+            obstacles = [];
           }
           
           obstacles.splice(j, 1);
@@ -165,262 +196,141 @@ function draw() {
         }
       }
     }
-  }
 
-  // Spawn new obstacles periodically
-  if (!gameOver && frameCount % spawnInterval === 0) {
-    obstacles.push(new Obstacle());
-  }
-
-  // Spawn new power-ups every 30 seconds, limit to 5
-  if (!gameOver && frameCount % (60 * 30) === 0 && powerUps.length < 5) {
-    powerUps.push(new PowerUp());
-  }
-
-  // Update and display obstacles
-  for (let i = obstacles.length - 1; i >= 0; i--) {
-    obstacles[i].update();
-    obstacles[i].show();
-
-    // Remove obstacles that have left the screen
-    if (obstacles[i].offscreen()) {
-      obstacles.splice(i, 1);
-      continue;
-    }
-
-    // Check collision with player
-    if (obstacles[i].hits(player)) {
-      // Create explosion particles on collision
-      for (let k = 0; k < 50; k++) {
-        particles.push(new Particle(player.x, player.y));
+    // Handle boss warning and spawning
+    if (bossWarningTimer > 0) {
+      bossWarningTimer--;
+      // Display warning message with flashing effect
+      textAlign(CENTER, CENTER);
+      textSize(40);
+      let warningAlpha = map(sin(frameCount * 0.2), -1, 1, 100, 255);
+      fill(255, 0, 0, warningAlpha);
+      text('WARNING: BOSS INCOMING!', width/2, height/2);
+      
+      // Spawn boss when warning timer ends
+      if (bossWarningTimer === 0) {
+        boss = new Boss();
+        // Clear any remaining obstacles
+        obstacles = [];
       }
-      gameOver = true;
     }
+
+    // Update and show boss if exists
+    if (boss) {
+      boss.update();
+      boss.show();
+      
+      // Boss shooting
+      if (frameCount % 60 === 0) { // Shoot every second
+        let bossBullets = boss.shoot();
+        bullets.push(...bossBullets);
+      }
+    }
+
+    // Update and show particles
+    for (let particle of particles) {
+      particle.update();
+      particle.show();
+    }
+    particles = particles.filter(particle => !particle.finished());
+
+    // Update and show explosion particles
+    for (let particle of explosionParticles) {
+      particle.update();
+      if (particle.type === 'smoke') {
+        particle.size += 0.5; // Smoke expands
+        particle.alpha -= 5; // Smoke fades faster
+      }
+      particle.show();
+    }
+    explosionParticles = explosionParticles.filter(particle => !particle.finished());
   }
 
-  // Update and display explosion particles
-  for (let i = particles.length - 1; i >= 0; i--) {
-    particles[i].update();
-    particles[i].show();
-    if (particles[i].finished()) {
-      particles.splice(i, 1);
-    }
-  }
-
-  // Display combo and level
-  displayComboAndLevel();
-
-  // Display score and Game Over message if needed
+  // Display score and level info
   fill(255);
   textSize(24);
   textAlign(LEFT, TOP);
-  text("Score: " + score, 10, 10);
+  text('Score: ' + score, 10, 10);
+  
+  // Display level progress
+  textAlign(RIGHT, TOP);
+  text('Level ' + level, width - 10, 10);
+  
+  // Level progress bar
+  let progressWidth = map(levelProgress, 0, levelThreshold, 0, 200);
+  fill(100);
+  rect(width/2 - 100, 30, 200, 10);
+  fill(0, 255, 0);
+  rect(width/2 - 100, 30, progressWidth, 10);
 
-  if (gameOver) {
-    noLoop(); // Stop the draw loop
-
-    // Create game over overlay if it doesn't exist
-    if (!gameOverDiv) {
-        gameOverDiv = createDiv('');
-        gameOverDiv.class('game-over-overlay');
-        
-        // Game Over title
-        let titleDiv = createDiv('GAME OVER');
-        titleDiv.class('game-over-title');
-        titleDiv.parent(gameOverDiv);
-        
-        // Final score
-        let scoreDiv = createDiv(`Final Score: ${score}`);
-        scoreDiv.class('final-score');
-        scoreDiv.parent(gameOverDiv);
-        
-        // Input container
-        let inputContainer = createDiv('');
-        inputContainer.class('input-container');
-        inputContainer.parent(gameOverDiv);
-        
-        // Email input
-        emailInput = createInput('');
-        emailInput.attribute('placeholder', 'Enter your email');
-        emailInput.parent(inputContainer);
-        
-        // Submit button
-        submitButton = createButton('Submit Score');
-        submitButton.parent(inputContainer);
-        submitButton.mousePressed(submitScore);
-        
-        // Restart text
-        let restartDiv = createDiv('Press \'R\' to Restart');
-        restartDiv.class('restart-text');
-        restartDiv.parent(gameOverDiv);
-    }
-  }
-
-  // Handle spread bullets effect
-  if (spreadBullets) {
-    spreadTimer--;
-    if (spreadTimer <= 0) {
-      spreadBullets = false;
-    }
-  }
-
-  // Update combo timer
-  if (comboTimer > 0) {
+  // Display combo
+  if (combo > 1) {
+    let alpha = map(comboTimer, 0, 60, 0, 255);
+    fill(255, 255, 0, alpha);
+    textSize(32);
+    textAlign(CENTER, TOP);
+    text(`${combo}x COMBO!`, width/2, 50);
     comboTimer--;
   }
 
-  // Boss spawning
-  if (!bossSpawned && score > 0 && score % 10 === 0) {
-    bossWarningTimer = 60; // 1 second warning (reduced from 3 seconds)
-  }
-
-  // Boss warning animation
-  if (bossWarningTimer > 0) {
-    bossWarningTimer--;
-    // Warning text
-    textSize(40);
-    textAlign(CENTER, CENTER);
-    let warningAlpha = map(sin(frameCount * 0.2), -1, 1, 100, 255);
-    fill(255, 0, 0, warningAlpha);
-    text("WARNING: BOSS APPROACHING!", width/2, height/2);
-    
-    // Warning effects
-    if (bossWarningTimer === 0) {
-      boss = new Boss();
-      bossSpawned = true;
-      // Create dramatic entrance effects
-      for(let i = 0; i < 30; i++) {
-        particles.push(new Particle(random(width), 0, 'explosion'));
-      }
-    }
-  }
-
-  // Boss update and display
-  if (boss) {
-    boss.update();
-    boss.show();
-
-    // Boss shooting - frequency increases with difficulty
-    let shootingInterval = Math.max(60 - boss.difficultyLevel * 5, 30);
-    if (frameCount % shootingInterval === 0) {
-      let bossBullets = boss.shoot();
-      bullets.push(...bossBullets);
-    }
-
-    // Check bullet collisions with boss and player
-    for (let i = bullets.length - 1; i >= 0; i--) {
-      if (bullets[i].isEnemyBullet) {
-        // Enemy bullets can only hit player
-        if (dist(bullets[i].x, bullets[i].y, player.x, player.y) < 20) {
-          if (powerUpEffects.shield) {
-            // Create shield hit effect
-            for (let k = 0; k < 20; k++) {
-              particles.push(new Particle(player.x, player.y, 'shield'));
-            }
-            bullets.splice(i, 1);
-            powerUpEffects.shield = false;
-            powerUpTimers.shield = 0;
-          } else {
-            // Create explosion effect
-            for (let k = 0; k < 50; k++) {
-              particles.push(new Particle(player.x, player.y));
-            }
-            gameOver = true;
-          }
-          break;
-        }
-      } else if (boss) { // Only check boss hits if boss exists
-        // Player bullets can only hit boss
-        if (dist(bullets[i].x, bullets[i].y, boss.x, boss.y) < boss.size/2) {
-          if (boss.hit()) {
-            // Boss defeated effects
-            for(let k = 0; k < 50; k++) {
-              particles.push(new Particle(boss.x, boss.y, 'explosion'));
-            }
-            score += 50;
-            boss = null;
-            bossSpawned = false;
-          }
-          bullets.splice(i, 1);
-          break;
-        }
-      }
-    }
-  }
-
-  // Update power-up timers and effects
-  for (let effect in powerUpTimers) {
-    if (powerUpEffects[effect]) {
-      powerUpTimers[effect]--;
-      if (powerUpTimers[effect] <= 0) {
-        powerUpEffects[effect] = false;
-        // Reset affected properties
-        switch(effect) {
-          case 'spreadShot':
-            bulletCount = 1;
-            break;
-          case 'speedBoost':
-            player.speed = 5;
-            break;
-        }
-      }
-    }
-  }
-
-  // Modify shooting logic for rapid fire
-  if (mouseIsPressed && mouseButton === LEFT) {
-    if (powerUpEffects.rapidFire && frameCount % 5 === 0) { // Shoot every 5 frames when rapid fire is active
-      for (let i = 0; i < bulletCount; i++) {
-        let offset = (i - (bulletCount - 1) / 2) * 0.1;
-        bullets.push(new Bullet(player.x, player.y, -PI/2 + offset));
-      }
-    }
-  }
-
-  // Update collision detection to account for shield
-  for (let i = obstacles.length - 1; i >= 0; i--) {
-    if (obstacles[i].hits(player)) {
-      if (powerUpEffects.shield) {
-        // Create shield hit effect
-        for (let k = 0; k < 20; k++) {
-          particles.push(new Particle(player.x, player.y, 'shield'));
-        }
-        // Remove the obstacle that hit the shield
-        obstacles.splice(i, 1);
-        // Remove shield after blocking one hit
-        powerUpEffects.shield = false;
-        powerUpTimers.shield = 0;
-      } else {
-        // Normal collision handling
-        for (let k = 0; k < 50; k++) {
-          particles.push(new Particle(player.x, player.y));
-        }
-        gameOver = true;
+  // Check for game over
+  if (gameOver) {
+    if (gameOverAnimationStarted) {
+      gameOverAnimationTimer--;
+      if (gameOverAnimationTimer <= 0) {
+        createGameOverOverlay();
+        noLoop();
       }
     }
   }
 }
 
-function submitScore() {
+// Update submitScore function to remove leaderboard functionality
+async function submitScore() {
   const email = emailInput.value();
-  leaderboard.push({ email: email, score: score });
-  leaderboard.sort((a, b) => b.score - a.score); // Sort leaderboard by score
-  updateLeaderboardDisplay();
-  if (gameOverDiv) {
-    gameOverDiv.remove();
-    gameOverDiv = null;
+  
+  if (!email || !email.includes('@')) {
+    alert('Please enter a valid email address');
+    return;
   }
-  resetGame();
-}
 
-function updateLeaderboardDisplay() {
-  const leaderboardList = document.getElementById('leaderboard-list');
-  leaderboardList.innerHTML = ''; // Clear existing entries
-  leaderboard.forEach(entry => {
-    const li = document.createElement('li');
-    li.textContent = `${entry.email}: ${entry.score}`;
-    leaderboardList.appendChild(li);
-  });
+  try {
+    // Show loading state
+    const submitButton = select('.game-over-button');
+    submitButton.html('Submitting...');
+    submitButton.attribute('disabled', '');
+
+    // Insert score into Supabase
+    const { data, error } = await supabase
+      .from('leaderboard')
+      .insert([
+        { email: email, score: score }
+      ]);
+
+    if (error) {
+      console.error('Supabase error:', error);
+      throw error;
+    }
+    
+    // Show success message
+    alert('Score submitted successfully!');
+    
+    // Clean up and reset
+    if (gameOverDiv) {
+      gameOverDiv.remove();
+      gameOverDiv = null;
+    }
+    resetGame();
+
+  } catch (error) {
+    console.error('Error submitting score:', error);
+    alert('Failed to submit score. Please try again. Error: ' + error.message);
+    
+    // Reset submit button
+    const submitButton = select('.game-over-button');
+    submitButton.html('Submit');
+    submitButton.removeAttribute('disabled');
+  }
 }
 
 // ===== Player Class =====
@@ -431,15 +341,30 @@ class Player {
     this.hspeed = 0;
     this.vspeed = 0;
     this.speed = 5;
+    this.targetX = x;
+    this.targetY = y;
+    this.destroyed = false;
   }
 
   update() {
+    // Update position based on keyboard input
+    if (this.hspeed !== 0 || this.vspeed !== 0) {
+      this.x += this.hspeed * this.speed;
+      this.y += this.vspeed * this.speed;
+      this.targetX = this.x;
+      this.targetY = this.y;
+    }
+    
     // Constrain player within the canvas
     this.x = constrain(this.x, 20, width - 20);
     this.y = constrain(this.y, 20, height - 20);
+    this.targetX = constrain(this.targetX, 20, width - 20);
+    this.targetY = constrain(this.targetY, 20, height - 20);
   }
 
   show() {
+    if (this.destroyed) return;
+    
     push();
     translate(this.x, this.y);
     
@@ -474,10 +399,8 @@ class Player {
     endShape(CLOSE);
     
     // Rocket body
-    // Main body (metallic silver)
     fill(220, 220, 230);
     noStroke();
-    // Sleek body shape
     beginShape();
     vertex(0, -30); // Nose tip
     vertex(-8, -20);
@@ -510,11 +433,6 @@ class Player {
     // Nose cone detail
     fill(200, 0, 0);
     triangle(-8, -20, 8, -20, 0, -30);
-    
-    // Engine details
-    fill(50);
-    rect(-6, 15, 4, 8);
-    rect(2, 15, 4, 8);
     
     pop();
   }
@@ -770,14 +688,71 @@ class Boss {
   hit() {
     if (this.invulnerable) return false;
     
-    // Create hit effect
-    for(let k = 0; k < 20; k++) {
-      particles.push(new Particle(this.x, this.y, 'explosion'));
+    // Enhanced hit effect for boss
+    // Main explosion particles
+    for(let k = 0; k < 25; k++) {
+      let particle = new Particle(this.x + random(-30, 30), this.y + random(-30, 30), 'explosion');
+      particle.size = random(10, 16);
+      particle.vx = random(-12, 12);
+      particle.vy = random(-12, 12);
+      particle.color = color(255, random(150, 255), 0);
+      particle.decay = random(8, 12);
+      particles.push(particle);
     }
+    
+    // Add bright sparks
+    for(let k = 0; k < 15; k++) {
+      let spark = new Particle(this.x + random(-20, 20), this.y + random(-20, 20), 'spark');
+      spark.size = random(2, 5);
+      spark.vx = random(-15, 15);
+      spark.vy = random(-15, 15);
+      spark.color = color(255, 255, random(180, 255));
+      spark.decay = random(10, 15);
+      particles.push(spark);
+    }
+    
+    // Add shockwave effect
+    let shockwave = new Particle(this.x, this.y, 'shockwave');
+    shockwave.maxSize = 100;
+    shockwave.growthRate = 6;
+    particles.push(shockwave);
     
     this.hitCount++;
     this.invulnerable = true;
     this.invulnerableTimer = 30; // Half second of invulnerability
+    
+    // If this is the final hit, create an even bigger explosion
+    if (this.hitCount >= this.maxHits) {
+      // Final explosion particles
+      for(let k = 0; k < 40; k++) {
+        let particle = new Particle(this.x + random(-50, 50), this.y + random(-50, 50), 'explosion');
+        particle.size = random(12, 20);
+        particle.vx = random(-15, 15);
+        particle.vy = random(-15, 15);
+        particle.color = color(255, random(180, 255), 0);
+        particle.decay = random(10, 15);
+        particles.push(particle);
+      }
+      
+      // Extra sparks for final explosion
+      for(let k = 0; k < 25; k++) {
+        let spark = new Particle(this.x + random(-40, 40), this.y + random(-40, 40), 'spark');
+        spark.size = random(3, 6);
+        spark.vx = random(-20, 20);
+        spark.vy = random(-20, 20);
+        spark.color = color(255, 255, random(200, 255));
+        spark.decay = random(12, 18);
+        particles.push(spark);
+      }
+      
+      // Multiple shockwaves for final explosion
+      for(let i = 0; i < 3; i++) {
+        let finalShockwave = new Particle(this.x, this.y, 'shockwave');
+        finalShockwave.maxSize = 150;
+        finalShockwave.growthRate = 8;
+        particles.push(finalShockwave);
+      }
+    }
     
     return this.hitCount >= this.maxHits;
   }
@@ -839,6 +814,8 @@ class Particle {
     this.x = x;
     this.y = y;
     this.type = type;
+    this.rotation = 0;
+    this.rotationSpeed = 0;
     
     if (type === 'shield') {
       this.vx = random(-5, 5);
@@ -846,18 +823,71 @@ class Particle {
       this.alpha = 255;
       this.color = color(100, 200, 255);
       this.size = random(4, 8);
+    } else if (type === 'shockwave') {
+      this.vx = 0;
+      this.vy = 0;
+      this.alpha = 255;
+      this.color = color(255, 200, 0, 150);
+      this.size = 1;
+      this.maxSize = 80;
+      this.growthRate = 4;
+    } else if (type === 'core') {
+      this.vx = 0;
+      this.vy = 0;
+      this.alpha = 255;
+      this.color = color(255, 50, 0);
+      this.size = 8;
+    } else if (type === 'debris') {
+      this.vx = 0;
+      this.vy = 0;
+      this.alpha = 255;
+      this.color = color(200, 200, 200);
+      this.size = random(4, 8);
     } else if (type === 'explosion') {
       this.vx = random(-8, 8);
       this.vy = random(-8, 8);
       this.alpha = 255;
       this.color = color(255, random(100, 200), 0);
       this.size = random(6, 12);
+    } else if (type === 'spark') {
+      this.vx = random(-10, 10);
+      this.vy = random(-10, 10);
+      this.alpha = 255;
+      this.color = color(255, 255, random(100, 255));
+      this.size = random(2, 4);
+    } else if (type === 'smoke') {
+      this.vx = random(-2, 2);
+      this.vy = random(-2, 0);
+      this.alpha = 200;
+      this.color = color(100, 100, 100);
+      this.size = random(15, 30);
     } else if (type === 'powerup') {
       this.vx = random(-3, 3);
       this.vy = random(-3, 3);
       this.alpha = 255;
       this.color = color(255, 255, 100);
       this.size = random(4, 8);
+    } else if (type === 'flash') {
+      this.vx = 0;
+      this.vy = 0;
+      this.alpha = 255;
+      this.color = color(255, 255, 200);
+      this.size = 60;
+    } else if (type === 'flame') {
+      this.vx = random(-3, 3);
+      this.vy = random(-3, 0);
+      this.alpha = 255;
+      this.color = color(255, 100, 0);
+      this.size = random(6, 10);
+      this.rotation = random(TWO_PI);
+      this.rotationSpeed = 0;
+    } else if (type === 'ember') {
+      this.vx = random(-4, 4);
+      this.vy = random(-4, -1);
+      this.alpha = 255;
+      this.color = color(255, 200, 50);
+      this.size = random(2, 4);
+      this.decay = random(8, 12);
     } else {
       this.vx = random(-3, 3);
       this.vy = random(-3, 3);
@@ -870,10 +900,35 @@ class Particle {
   update() {
     this.x += this.vx;
     this.y += this.vy;
-    this.alpha -= this.type === 'explosion' ? 8 : 5;
-    if (this.type === 'shield') {
+    
+    if (this.type === 'shockwave') {
+      this.size += this.growthRate;
+      this.alpha = map(this.size, 0, this.maxSize, 255, 0);
+      this.growthRate *= 0.95; // Slow down expansion
+    } else if (this.type === 'core') {
+      this.size *= 0.9;
+      this.alpha -= 15;
+    } else if (this.type === 'debris') {
+      this.rotation += this.rotationSpeed;
+      this.vy += 0.1; // Add gravity
+      this.alpha -= 5;
+    } else if (this.type === 'flash') {
+      this.alpha -= 25; // Quick fade for flash
+      this.size *= 0.9; // Shrink the flash
+    } else if (this.type === 'explosion') {
+      this.alpha -= this.decay;
+      this.size *= 0.95;
       this.vx *= 0.95;
       this.vy *= 0.95;
+    } else if (this.type === 'spark') {
+      this.alpha -= this.decay;
+      this.vy += 0.2; // Add slight gravity to sparks
+    } else {
+      this.alpha -= this.type === 'explosion' ? 8 : 5;
+      if (this.type === 'shield') {
+        this.vx *= 0.95;
+        this.vy *= 0.95;
+      }
     }
   }
 
@@ -881,7 +936,72 @@ class Particle {
     noStroke();
     this.color.setAlpha(this.alpha);
     fill(this.color);
-    ellipse(this.x, this.y, this.size);
+    
+    push();
+    translate(this.x, this.y);
+    
+    if (this.type === 'shockwave') {
+      // Draw expanding ring
+      noFill();
+      stroke(this.color);
+      strokeWeight(2);
+      ellipse(0, 0, this.size);
+    } else if (this.type === 'debris') {
+      // Draw rotating debris pieces
+      rotate(this.rotation);
+      rect(-this.size/2, -this.size/4, this.size, this.size/2);
+    } else if (this.type === 'flash') {
+      // Draw flash with blur effect
+      for (let i = 0; i < 3; i++) {
+        let a = this.alpha * (1 - i * 0.2);
+        fill(255, 255, 200, a);
+        ellipse(0, 0, this.size * (1 + i * 0.5));
+      }
+    } else if (this.type === 'spark') {
+      // Draw elongated spark
+      let len = this.size * 2;
+      let angle = atan2(this.vy, this.vx);
+      push();
+      rotate(angle);
+      fill(255, 255, 200, this.alpha);
+      rect(-len/2, -1, len, 2);
+      pop();
+    } else if (this.type === 'flame') {
+      // Draw flame-like shape
+      push();
+      translate(this.x, this.y);
+      rotate(this.rotation);
+      this.rotation += this.rotationSpeed;
+      
+      // Draw multiple layers for fire effect
+      for (let i = 0; i < 3; i++) {
+        let flameSize = this.size * (1 - i * 0.2);
+        let flameAlpha = this.alpha * (1 - i * 0.3);
+        fill(red(this.color), green(this.color), blue(this.color), flameAlpha);
+        beginShape();
+        vertex(0, -flameSize);
+        bezierVertex(-flameSize/2, 0, -flameSize/3, flameSize/2, 0, flameSize);
+        bezierVertex(flameSize/3, flameSize/2, flameSize/2, 0, 0, -flameSize);
+        endShape();
+      }
+      pop();
+    } else if (this.type === 'ember') {
+      // Draw glowing ember
+      push();
+      translate(this.x, this.y);
+      // Inner bright core
+      fill(255, 255, 200, this.alpha);
+      ellipse(0, 0, this.size * 0.6);
+      // Outer glow
+      fill(red(this.color), green(this.color), blue(this.color), this.alpha * 0.7);
+      ellipse(0, 0, this.size);
+      pop();
+    } else {
+      // Draw regular particles
+      ellipse(0, 0, this.size);
+    }
+    
+    pop();
   }
 
   finished() {
@@ -1236,9 +1356,9 @@ function resetGame() {
   bullets = [];
   powerUps = [];
   spreadBullets = false;
-  bulletCount = 1; // Reset bullet count to 1
-  player = new Player(width / 2, height - 50); // Reset player position
-  loop(); // Restart the draw loop
+  bulletCount = 1;
+  player = new Player(width / 2, height - 50);
+  player.destroyed = false;
   combo = 0;
   comboTimer = 0;
   level = 1;
@@ -1249,49 +1369,177 @@ function resetGame() {
   boss = null;
   bossSpawned = false;
   bossWarningTimer = 0;
+  loop();
 }
 
 function touchStarted() {
-  if (!gameOver) {
-    touchStartX = mouseX;
-    touchStartY = mouseY;
-    isTouching = true;
-    
-    // Always shoot when touching
-    let currentTime = millis();
-    if (currentTime - lastTouchShootTime > touchShootDelay) {
-      for (let i = 0; i < bulletCount; i++) {
-        let offset = (i - (bulletCount - 1) / 2) * 0.1;
-        bullets.push(new Bullet(player.x, player.y, -PI/2 + offset));
-      }
-      lastTouchShootTime = currentTime;
+  if (gameOver) return false;
+  
+  isTouching = true;
+  
+  // Get the canvas element and its bounding rectangle
+  let canvas = document.querySelector('canvas');
+  let canvasRect = canvas.getBoundingClientRect();
+  
+  // Get the touch position
+  let touch = touches[0];
+  if (!touch) return false;
+  
+  // Calculate the actual position on the canvas
+  let scaleX = width / canvasRect.width;
+  let scaleY = height / canvasRect.height;
+  let touchX = (touch.clientX - canvasRect.left) * scaleX;
+  let touchY = (touch.clientY - canvasRect.top) * scaleY;
+  
+  // Update player position
+  player.x = constrain(touchX, 20, width - 20);
+  player.y = constrain(touchY, 20, height - 20);
+  
+  // Shoot when touch starts
+  let currentTime = millis();
+  if (currentTime - lastTouchShootTime > touchShootDelay) {
+    for (let i = 0; i < bulletCount; i++) {
+      let offset = (i - (bulletCount - 1) / 2) * 0.1;
+      bullets.push(new Bullet(player.x, player.y, -PI/2 + offset));
     }
-    return false;
+    lastTouchShootTime = currentTime;
   }
+  
+  return false;
 }
 
 function touchMoved() {
-  if (!gameOver && isTouching) {
-    // Direct position control
-    player.x = mouseX;
-    player.y = mouseY;
-    
-    // Always shoot while touching
-    let currentTime = millis();
-    if (currentTime - lastTouchShootTime > touchShootDelay) {
-      for (let i = 0; i < bulletCount; i++) {
-        let offset = (i - (bulletCount - 1) / 2) * 0.1;
-        bullets.push(new Bullet(player.x, player.y, -PI/2 + offset));
-      }
-      lastTouchShootTime = currentTime;
+  if (gameOver) return false;
+  
+  // Get the canvas element and its bounding rectangle
+  let canvas = document.querySelector('canvas');
+  let canvasRect = canvas.getBoundingClientRect();
+  
+  // Get the touch position
+  let touch = touches[0];
+  if (!touch) return false;
+  
+  // Calculate the actual position on the canvas
+  let scaleX = width / canvasRect.width;
+  let scaleY = height / canvasRect.height;
+  let touchX = (touch.clientX - canvasRect.left) * scaleX;
+  let touchY = (touch.clientY - canvasRect.top) * scaleY;
+  
+  // Update player position
+  player.x = constrain(touchX, 20, width - 20);
+  player.y = constrain(touchY, 20, height - 20);
+  
+  // Continue shooting while touching
+  let currentTime = millis();
+  if (currentTime - lastTouchShootTime > touchShootDelay) {
+    for (let i = 0; i < bulletCount; i++) {
+      let offset = (i - (bulletCount - 1) / 2) * 0.1;
+      bullets.push(new Bullet(player.x, player.y, -PI/2 + offset));
     }
-    return false;
+    lastTouchShootTime = currentTime;
   }
+  
+  return false;
 }
 
 function touchEnded() {
-  if (!gameOver) {
-    isTouching = false;
-    return false;
+  isTouching = false;
+  return false;
+}
+
+// Update mouseMoved function to handle mouse movement
+function mouseMoved() {
+  if (!gameOver && !isTouching) {
+    player.x = constrain(mouseX, 20, width - 20);
+    player.y = constrain(mouseY, 20, height - 20);
   }
+}
+
+// Add createGameOverOverlay function if missing
+function createGameOverOverlay() {
+  gameOverDiv = createDiv('');
+  gameOverDiv.class('game-over-overlay');
+  gameOverDiv.style('display', 'flex');
+  
+  let content = createDiv('');
+  content.parent(gameOverDiv);
+  content.style('text-align', 'center');
+  content.style('color', 'white');
+  
+  let gameOverTitle = createElement('h1', 'GAME OVER');
+  gameOverTitle.class('game-over-title');
+  gameOverTitle.parent(content);
+  
+  let finalScore = createElement('p', 'Final Score: ' + score);
+  finalScore.class('final-score');
+  finalScore.parent(content);
+  
+  let inputContainer = createDiv('');
+  inputContainer.class('input-container');
+  inputContainer.parent(content);
+  
+  emailInput = createInput('');
+  emailInput.attribute('placeholder', 'Enter your email');
+  emailInput.parent(inputContainer);
+  
+  let submitButton = createButton('Submit');
+  submitButton.class('game-over-button');
+  submitButton.mousePressed(submitScore);
+  submitButton.parent(inputContainer);
+  
+  let buttonContainer = createDiv('');
+  buttonContainer.class('button-container');
+  buttonContainer.parent(content);
+  
+  let homeButton = createButton('Home');
+  homeButton.class('game-over-button');
+  homeButton.mousePressed(resetGame);
+  homeButton.parent(buttonContainer);
+  
+  let restartButton = createButton('Play Again');
+  restartButton.class('game-over-button');
+  restartButton.mousePressed(resetGame);
+  restartButton.parent(buttonContainer);
+}
+
+// Add new function for rocket explosion
+function createRocketExplosion(x, y) {
+  // Initial bright flash
+  let flash = new Particle(x, y, 'flash');
+  flash.size = 40;
+  flash.alpha = 255;
+  flash.color = color(255, 220, 150);
+  explosionParticles.push(flash);
+
+  // Main explosion particles
+  for (let i = 0; i < 20; i++) {
+    let angle = random(TWO_PI);
+    let speed = random(3, 6);
+    let particle = new Particle(x, y, 'explosion');
+    particle.vx = cos(angle) * speed;
+    particle.vy = sin(angle) * speed;
+    particle.size = random(6, 10);
+    particle.color = color(255, random(150, 200), 0);
+    particle.decay = random(8, 12);
+    explosionParticles.push(particle);
+  }
+
+  // Bright sparks
+  for (let i = 0; i < 12; i++) {
+    let angle = random(TWO_PI);
+    let speed = random(4, 8);
+    let spark = new Particle(x, y, 'spark');
+    spark.vx = cos(angle) * speed;
+    spark.vy = sin(angle) * speed;
+    spark.size = random(2, 4);
+    spark.color = color(255, 255, random(180, 255));
+    spark.decay = random(10, 15);
+    explosionParticles.push(spark);
+  }
+
+  // Simple shockwave
+  let shockwave = new Particle(x, y, 'shockwave');
+  shockwave.maxSize = 60;
+  shockwave.growthRate = 3;
+  explosionParticles.push(shockwave);
 }
