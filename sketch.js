@@ -52,6 +52,7 @@ let gameOverAnimationTimer = 0;
 function setup() {
   let canvas = createCanvas(600, 800);
   canvas.parent('game-container');
+  canvas.style('display', 'block');
   
   // Initialize player and game settings
   player = new Player(width/2, height - 50);
