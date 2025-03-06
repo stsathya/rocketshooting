@@ -21,13 +21,23 @@
       justify-content: center;
       align-items: center;
       min-height: 100vh;
-      background: #000;
+      background-color: #000;
       overflow: hidden;
       touch-action: none;
     }
 
     #game-container {
       position: relative;
+      width: 100%;
+      max-width: 800px;
+      height: 100vh;
+      max-height: 600px;
+      touch-action: none;
+    }
+
+    canvas {
+      display: block;
+      margin: 0 auto;
       touch-action: none;
     }
 
@@ -38,29 +48,43 @@
       width: 100%;
       height: 100%;
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
+      background-color: rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+    }
+
+    #play-button {
+      padding: 15px 30px;
+      font-size: 24px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #play-button:hover {
+      background-color: #45a049;
+    }
+
+    #game-over {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: white;
+      font-size: 24px;
       z-index: 1000;
     }
 
     .home-content {
       text-align: center;
-    }
-
-    #play-button {
-      padding: 15px 40px;
-      font-size: 24px;
-      background: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      transition: transform 0.2s;
-      touch-action: manipulation;
-    }
-
-    #play-button:hover {
-      transform: scale(1.1);
     }
 
     .game-over-overlay {
@@ -133,27 +157,32 @@
   <div id="game-container">
     <div id="home-screen">
       <div class="home-content">
-        <button id="play-button" onclick="startGame()" ontouchstart="startGame()">Play</button>
+        <button id="play-button" onclick="startGame()">Play Game</button>
       </div>
+    </div>
+    <div id="game-over">
+      <p>Game Over!</p>
+      <p>Score: <span id="final-score">0</span></p>
+      <button id="restart-button" onclick="restartGame()">Play Again</button>
     </div>
   </div>
   <script src="sketch.js"></script>
   <script>
-    // Prevent default touch behaviors
+    // Prevent default touch behaviors except for buttons
     document.addEventListener('touchstart', function(e) {
-      if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') {
+      if (e.target.tagName !== 'BUTTON') {
         e.preventDefault();
       }
     }, { passive: false });
     
     document.addEventListener('touchmove', function(e) {
-      if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') {
+      if (e.target.tagName !== 'BUTTON') {
         e.preventDefault();
       }
     }, { passive: false });
     
     document.addEventListener('touchend', function(e) {
-      if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') {
+      if (e.target.tagName !== 'BUTTON') {
         e.preventDefault();
       }
     }, { passive: false });
