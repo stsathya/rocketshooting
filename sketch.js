@@ -64,19 +64,21 @@ function draw() {
   
   // Animate the stars to move downward
   for (let star of stars) {
-    star.y += 1; // Move star downward
+    star.y += 1;
     if (star.y > height) {
-      star.y = 0; // Wrap star to the top
-      star.x = random(width); // Randomize x position for variety
+      star.y = 0;
+      star.x = random(width);
     }
     fill(255, star.brightness);
     noStroke();
     ellipse(star.x, star.y, 2, 2);
   }
 
-  // Update player position to follow the mouse
-  player.x = mouseX;
-  player.y = mouseY;
+  // Only update player position if touching
+  if (isTouching) {
+    player.x = mouseX;
+    player.y = mouseY;
+  }
 
   // Update and show the player
   player.update();
@@ -422,15 +424,10 @@ class Player {
     this.hspeed = 0;
     this.vspeed = 0;
     this.speed = 5;
-    this.touchTarget = { x: x, y: y }; // Add touch target position
   }
 
   update() {
-    if (isTouching) {
-      // Move towards touch position with smooth interpolation
-      this.x = lerp(this.x, mouseX, 0.1);
-      this.y = lerp(this.y, mouseY, 0.1);
-    } else {
+    if (!isTouching) {
       this.x += this.hspeed * this.speed;
       this.y += this.vspeed * this.speed;
     }
@@ -1257,7 +1254,7 @@ function touchStarted() {
     touchStartY = mouseY;
     isTouching = true;
     
-    // Shoot whenever touching the screen
+    // Always shoot when touching
     let currentTime = millis();
     if (currentTime - lastTouchShootTime > touchShootDelay) {
       for (let i = 0; i < bulletCount; i++) {
@@ -1272,19 +1269,11 @@ function touchStarted() {
 
 function touchMoved() {
   if (!gameOver && isTouching) {
-    // Calculate movement based on touch drag
-    let dx = mouseX - touchStartX;
-    let dy = mouseY - touchStartY;
+    // Direct position control
+    player.x = mouseX;
+    player.y = mouseY;
     
-    // Update player direction based on touch movement
-    player.setDir(dx !== 0 ? Math.sign(dx) : 0);
-    player.setVerticalDir(dy !== 0 ? Math.sign(dy) : 0);
-    
-    // Update touch start position for next frame
-    touchStartX = mouseX;
-    touchStartY = mouseY;
-    
-    // Shoot while moving
+    // Always shoot while touching
     let currentTime = millis();
     if (currentTime - lastTouchShootTime > touchShootDelay) {
       for (let i = 0; i < bulletCount; i++) {
@@ -1300,8 +1289,6 @@ function touchMoved() {
 function touchEnded() {
   if (!gameOver) {
     isTouching = false;
-    player.setDir(0);
-    player.setVerticalDir(0);
     return false;
   }
 }
