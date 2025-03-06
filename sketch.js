@@ -108,42 +108,45 @@ function draw() {
       continue;
     }
 
-    // Check collision with obstacles
-    for (let j = obstacles.length - 1; j >= 0; j--) {
-      if (dist(bullets[i].x, bullets[i].y, obstacles[j].x, obstacles[j].y) < obstacles[j].size) {
-        // Enhanced hit effects
-        for(let k = 0; k < 15; k++) {
-          particles.push(new Particle(obstacles[j].x, obstacles[j].y, 'shield'));
+    if (!bullets[i].isEnemyBullet) {
+      // Player bullets can hit obstacles and boss
+      // Check collision with obstacles
+      for (let j = obstacles.length - 1; j >= 0; j--) {
+        if (dist(bullets[i].x, bullets[i].y, obstacles[j].x, obstacles[j].y) < obstacles[j].size) {
+          // Enhanced hit effects
+          for(let k = 0; k < 15; k++) {
+            particles.push(new Particle(obstacles[j].x, obstacles[j].y, 'shield'));
+          }
+          for(let k = 0; k < 8; k++) {
+            particles.push(new Particle(obstacles[j].x, obstacles[j].y, 'explosion'));
+          }
+          
+          // Update combo system
+          let currentTime = millis();
+          if (currentTime - lastHitTime < 1000) { // If hit within 1 second
+            combo++;
+            comboTimer = 60;
+          } else {
+            combo = 1;
+          }
+          lastHitTime = currentTime;
+          
+          // Calculate score with combo
+          score += combo;
+          
+          // Update level progress
+          levelProgress++;
+          if (levelProgress >= levelThreshold) {
+            level++;
+            levelProgress = 0;
+            levelThreshold += 5; // Increase threshold for next level
+            spawnInterval = max(20, 60 - (level * 5)); // Increase spawn rate with level
+          }
+          
+          obstacles.splice(j, 1);
+          bullets.splice(i, 1);
+          break;
         }
-        for(let k = 0; k < 8; k++) {
-          particles.push(new Particle(obstacles[j].x, obstacles[j].y, 'explosion'));
-        }
-        
-        // Update combo system
-        let currentTime = millis();
-        if (currentTime - lastHitTime < 1000) { // If hit within 1 second
-          combo++;
-          comboTimer = 60;
-        } else {
-          combo = 1;
-        }
-        lastHitTime = currentTime;
-        
-        // Calculate score with combo
-        score += combo;
-        
-        // Update level progress
-        levelProgress++;
-        if (levelProgress >= levelThreshold) {
-          level++;
-          levelProgress = 0;
-          levelThreshold += 5; // Increase threshold for next level
-          spawnInterval = max(20, 60 - (level * 5)); // Increase spawn rate with level
-        }
-        
-        obstacles.splice(j, 1);
-        bullets.splice(i, 1);
-        break;
       }
     }
   }
@@ -282,7 +285,7 @@ function draw() {
     boss.show();
 
     // Boss shooting - frequency increases with difficulty
-    let shootingInterval = Math.max(60 - boss.difficultyLevel * 5, 30); // Starts at 60 frames, decreases to minimum 30
+    let shootingInterval = Math.max(60 - boss.difficultyLevel * 5, 30);
     if (frameCount % shootingInterval === 0) {
       let bossBullets = boss.shoot();
       bullets.push(...bossBullets);
@@ -291,7 +294,7 @@ function draw() {
     // Check bullet collisions with boss and player
     for (let i = bullets.length - 1; i >= 0; i--) {
       if (bullets[i].isEnemyBullet) {
-        // Enemy bullets hitting player
+        // Enemy bullets can only hit player
         if (dist(bullets[i].x, bullets[i].y, player.x, player.y) < 20) {
           if (powerUpEffects.shield) {
             // Create shield hit effect
@@ -299,7 +302,7 @@ function draw() {
               particles.push(new Particle(player.x, player.y, 'shield'));
             }
             bullets.splice(i, 1);
-            powerUpEffects.shield = false; // Remove shield after blocking one hit
+            powerUpEffects.shield = false;
             powerUpTimers.shield = 0;
           } else {
             // Create explosion effect
@@ -310,15 +313,15 @@ function draw() {
           }
           break;
         }
-      } else {
-        // Player bullets hitting boss
+      } else if (boss) { // Only check boss hits if boss exists
+        // Player bullets can only hit boss
         if (dist(bullets[i].x, bullets[i].y, boss.x, boss.y) < boss.size/2) {
           if (boss.hit()) {
             // Boss defeated effects
             for(let k = 0; k < 50; k++) {
               particles.push(new Particle(boss.x, boss.y, 'explosion'));
             }
-            score += 50; // Reduced bonus for defeating boss
+            score += 50;
             boss = null;
             bossSpawned = false;
           }
