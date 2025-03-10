@@ -21,7 +21,6 @@ let gameOverDiv;
 let boss = null;
 let bossSpawned = false;
 let bossWarningTimer = 0;
-let touchFeedback = [];
 
 // Add touch control variables
 let isTouching = false;
@@ -341,24 +340,20 @@ class Player {
     this.hspeed = 0;
     this.vspeed = 0;
     this.speed = 5;
-    this.targetX = x; // Target position for touch/mouse movement
+    this.targetX = x;
     this.targetY = y;
     this.destroyed = false;
   }
 
   update() {
-    // Smooth movement towards target position (for touch/mouse)
+    // Update position based on keyboard input
     if (this.hspeed !== 0 || this.vspeed !== 0) {
       this.x += this.hspeed * this.speed;
       this.y += this.vspeed * this.speed;
       this.targetX = this.x;
       this.targetY = this.y;
-    } else {
-      // Lerp towards target position for smoother touch movement
-      this.x = lerp(this.x, this.targetX, 0.2);
-      this.y = lerp(this.y, this.targetY, 0.2);
     }
-
+    
     // Constrain player within the canvas
     this.x = constrain(this.x, 20, width - 20);
     this.y = constrain(this.y, 20, height - 20);
@@ -366,8 +361,90 @@ class Player {
     this.targetY = constrain(this.targetY, 20, height - 20);
   }
 
-  // ... rest of the Player class remains unchanged ...
+  show() {
+    if (this.destroyed) return;
+    
+    push();
+    translate(this.x, this.y);
+    
+    // Shield effect
+    if (powerUpEffects.shield) {
+      noFill();
+      strokeWeight(2);
+      let shieldPulse = sin(frameCount * 0.1) * 5;
+      for(let i = 0; i < 3; i++) {
+        let alpha = map(i, 0, 2, 200, 50);
+        stroke(100, 200, 255, alpha);
+        ellipse(0, 0, 50 + i * 5 + shieldPulse);
+      }
+    }
+    
+    // Rocket flames (animated)
+    let flameSize = random(10, 15);
+    // Main flame
+    fill(255, 150, 0, 200);
+    beginShape();
+    vertex(-8, 20);
+    vertex(0, 40 + flameSize);
+    vertex(8, 20);
+    endShape(CLOSE);
+    
+    // Inner flame
+    fill(255, 255, 0, 150);
+    beginShape();
+    vertex(-4, 20);
+    vertex(0, 30 + flameSize/2);
+    vertex(4, 20);
+    endShape(CLOSE);
+    
+    // Rocket body
+    fill(220, 220, 230);
+    noStroke();
+    beginShape();
+    vertex(0, -30); // Nose tip
+    vertex(-8, -20);
+    vertex(-10, 0);
+    vertex(-8, 20);
+    vertex(8, 20);
+    vertex(10, 0);
+    vertex(8, -20);
+    endShape(CLOSE);
+    
+    // Cockpit window
+    fill(100, 200, 255, 200);
+    ellipse(0, -5, 12, 18);
+    
+    // Wing details
+    fill(180, 180, 190);
+    // Left wing
+    beginShape();
+    vertex(-10, 0);
+    vertex(-20, 15);
+    vertex(-8, 20);
+    endShape(CLOSE);
+    // Right wing
+    beginShape();
+    vertex(10, 0);
+    vertex(20, 15);
+    vertex(8, 20);
+    endShape(CLOSE);
+    
+    // Nose cone detail
+    fill(200, 0, 0);
+    triangle(-8, -20, 8, -20, 0, -30);
+    
+    pop();
+  }
+
+  setDir(direction) {
+    this.hspeed = direction;
+  }
+  
+  setVerticalDir(direction) {
+    this.vspeed = direction;
+  }
 }
+
 // ===== Obstacle Class =====
 class Obstacle {
   constructor() {
@@ -1385,120 +1462,77 @@ function createRocketExplosion(x, y) {
   explosionParticles.push(shockwave);
 }
 
-
 function touchStarted() {
   if (gameOver) return false;
-
+  
   isTouching = true;
-
-  // Get canvas position and scale
+  
+  // Get the canvas element and its bounding rectangle
   let canvas = document.querySelector('canvas');
   let canvasRect = canvas.getBoundingClientRect();
+  
+  // Get the touch position
+  let touch = touches[0];
+  if (!touch) return false;
+  
+  // Calculate the actual position on the canvas
   let scaleX = width / canvasRect.width;
   let scaleY = height / canvasRect.height;
-
-  // Handle multiple touches
-  for (let i = 0; i < touches.length; i++) {
-    let touch = touches[i];
-    let touchX = (touch.clientX - canvasRect.left) * scaleX;
-    let touchY = (touch.clientY - canvasRect.top) * scaleY;
-
-    // First touch controls movement
-    if (i === 0) {
-      player.targetX = constrain(touchX, 20, width - 20);
-      player.targetY = constrain(touchY, 20, height - 20);
-
-      // Add touch feedback particle
-      touchFeedback.push({
-        x: touchX,
-        y: touchY,
-        alpha: 255,
-        size: 20
-      });
+  let touchX = (touch.clientX - canvasRect.left) * scaleX;
+  let touchY = (touch.clientY - canvasRect.top) * scaleY;
+  
+  // Update player position
+  player.x = constrain(touchX, 20, width - 20);
+  player.y = constrain(touchY, 20, height - 20);
+  
+  // Shoot when touch starts
+  let currentTime = millis();
+  if (currentTime - lastTouchShootTime > touchShootDelay) {
+    for (let i = 0; i < bulletCount; i++) {
+      let offset = (i - (bulletCount - 1) / 2) * 0.1;
+      bullets.push(new Bullet(player.x, player.y, -PI/2 + offset));
     }
-
-    // Second touch triggers shooting (if multi-touch is detected)
-    if (i === 1) {
-      let currentTime = millis();
-      if (currentTime - lastTouchShootTime > touchShootDelay) {
-        shootBullets(player.x, player.y);
-        lastTouchShootTime = currentTime;
-      }
-    }
+    lastTouchShootTime = currentTime;
   }
-
+  
   return false;
 }
 
 function touchMoved() {
-  if (gameOver || !isTouching) return false;
-
+  if (gameOver) return false;
+  
+  // Get the canvas element and its bounding rectangle
   let canvas = document.querySelector('canvas');
   let canvasRect = canvas.getBoundingClientRect();
+  
+  // Get the touch position
+  let touch = touches[0];
+  if (!touch) return false;
+  
+  // Calculate the actual position on the canvas
   let scaleX = width / canvasRect.width;
   let scaleY = height / canvasRect.height;
-
-  // Handle first touch for movement
-  if (touches.length > 0) {
-    let touch = touches[0];
-    let touchX = (touch.clientX - canvasRect.left) * scaleX;
-    let touchY = (touch.clientY - canvasRect.top) * scaleY;
-
-    player.targetX = constrain(touchX, 20, width - 20);
-    player.targetY = constrain(touchY, 20, height - 20);
-
-    // Update touch feedback position
-    if (touchFeedback.length > 0) {
-      touchFeedback[0].x = touchX;
-      touchFeedback[0].y = touchY;
+  let touchX = (touch.clientX - canvasRect.left) * scaleX;
+  let touchY = (touch.clientY - canvasRect.top) * scaleY;
+  
+  // Update player position
+  player.x = constrain(touchX, 20, width - 20);
+  player.y = constrain(touchY, 20, height - 20);
+  
+  // Continue shooting while touching
+  let currentTime = millis();
+  if (currentTime - lastTouchShootTime > touchShootDelay) {
+    for (let i = 0; i < bulletCount; i++) {
+      let offset = (i - (bulletCount - 1) / 2) * 0.1;
+      bullets.push(new Bullet(player.x, player.y, -PI/2 + offset));
     }
+    lastTouchShootTime = currentTime;
   }
-
-  // Continuous shooting with second touch
-  if (touches.length > 1) {
-    let currentTime = millis();
-    if (currentTime - lastTouchShootTime > touchShootDelay) {
-      shootBullets(player.x, player.y);
-      lastTouchShootTime = currentTime;
-    }
-  }
-
+  
   return false;
 }
 
 function touchEnded() {
-  if (gameOver) return false;
-
   isTouching = false;
-  // Clear touch feedback when touch ends
-  touchFeedback = [];
   return false;
-}
-
-// Helper function to shoot bullets
-function shootBullets(x, y) {
-  for (let i = 0; i < bulletCount; i++) {
-    let offset = (i - (bulletCount - 1) / 2) * 0.1;
-    bullets.push(new Bullet(x, y, -PI / 2 + offset));
-  }
-}
-
-// Add touch feedback to draw loop
-function draw() {
-  // ... existing draw code ...
-
-  // Draw touch feedback
-  for (let i = touchFeedback.length - 1; i >= 0; i--) {
-    let tf = touchFeedback[i];
-    fill(255, 255, 0, tf.alpha);
-    noStroke();
-    ellipse(tf.x, tf.y, tf.size);
-    tf.alpha -= 10; // Fade out
-    tf.size -= 0.5; // Shrink
-    if (tf.alpha <= 0) {
-      touchFeedback.splice(i, 1);
-    }
-  }
-
-  // ... rest of draw code ...
 }
