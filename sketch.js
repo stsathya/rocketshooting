@@ -22,6 +22,11 @@ let boss = null;
 let bossSpawned = false;
 let bossWarningTimer = 0;
 
+// Add touch control variables
+let isTouching = false;
+let lastTouchShootTime = 0;
+let touchShootDelay = 250; // Minimum delay between touch shots in milliseconds
+
 // Add new global variables for power-up effects
 let powerUpEffects = {
   spreadShot: false,
@@ -1367,7 +1372,7 @@ function resetGame() {
 }
 
 function mouseMoved() {
-  if (!gameOver) {
+  if (!gameOver && !isTouching) {
     player.x = constrain(mouseX, 20, width - 20);
     player.y = constrain(mouseY, 20, height - 20);
   }
@@ -1455,4 +1460,79 @@ function createRocketExplosion(x, y) {
   shockwave.maxSize = 60;
   shockwave.growthRate = 3;
   explosionParticles.push(shockwave);
+}
+
+function touchStarted() {
+  if (gameOver) return false;
+  
+  isTouching = true;
+  
+  // Get the canvas element and its bounding rectangle
+  let canvas = document.querySelector('canvas');
+  let canvasRect = canvas.getBoundingClientRect();
+  
+  // Get the touch position
+  let touch = touches[0];
+  if (!touch) return false;
+  
+  // Calculate the actual position on the canvas
+  let scaleX = width / canvasRect.width;
+  let scaleY = height / canvasRect.height;
+  let touchX = (touch.clientX - canvasRect.left) * scaleX;
+  let touchY = (touch.clientY - canvasRect.top) * scaleY;
+  
+  // Update player position
+  player.x = constrain(touchX, 20, width - 20);
+  player.y = constrain(touchY, 20, height - 20);
+  
+  // Shoot when touch starts
+  let currentTime = millis();
+  if (currentTime - lastTouchShootTime > touchShootDelay) {
+    for (let i = 0; i < bulletCount; i++) {
+      let offset = (i - (bulletCount - 1) / 2) * 0.1;
+      bullets.push(new Bullet(player.x, player.y, -PI/2 + offset));
+    }
+    lastTouchShootTime = currentTime;
+  }
+  
+  return false;
+}
+
+function touchMoved() {
+  if (gameOver) return false;
+  
+  // Get the canvas element and its bounding rectangle
+  let canvas = document.querySelector('canvas');
+  let canvasRect = canvas.getBoundingClientRect();
+  
+  // Get the touch position
+  let touch = touches[0];
+  if (!touch) return false;
+  
+  // Calculate the actual position on the canvas
+  let scaleX = width / canvasRect.width;
+  let scaleY = height / canvasRect.height;
+  let touchX = (touch.clientX - canvasRect.left) * scaleX;
+  let touchY = (touch.clientY - canvasRect.top) * scaleY;
+  
+  // Update player position
+  player.x = constrain(touchX, 20, width - 20);
+  player.y = constrain(touchY, 20, height - 20);
+  
+  // Continue shooting while touching
+  let currentTime = millis();
+  if (currentTime - lastTouchShootTime > touchShootDelay) {
+    for (let i = 0; i < bulletCount; i++) {
+      let offset = (i - (bulletCount - 1) / 2) * 0.1;
+      bullets.push(new Bullet(player.x, player.y, -PI/2 + offset));
+    }
+    lastTouchShootTime = currentTime;
+  }
+  
+  return false;
+}
+
+function touchEnded() {
+  isTouching = false;
+  return false;
 }
