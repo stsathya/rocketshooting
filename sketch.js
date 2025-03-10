@@ -1499,40 +1499,39 @@ function touchStarted() {
 }
 
 function touchMoved() {
-  if (gameOver) return false;
-  
-  // Get the canvas element and its bounding rectangle
-  let canvas = document.querySelector('canvas');
-  let canvasRect = canvas.getBoundingClientRect();
-  
-  // Get the touch position
-  let touch = touches[0];
-  if (!touch) return false;
-  
-  // Calculate the actual position on the canvas
-  let scaleX = width / canvasRect.width;
-  let scaleY = height / canvasRect.height;
-  let touchX = (touch.clientX - canvasRect.left) * scaleX;
-  let touchY = (touch.clientY - canvasRect.top) * scaleY;
-  
-  // Update player position
-  player.x = constrain(touchX, 20, width - 20);
-  player.y = constrain(touchY, 20, height - 20);
-  
-  // Continue shooting while touching
-  let currentTime = millis();
-  if (currentTime - lastTouchShootTime > touchShootDelay) {
-    for (let i = 0; i < bulletCount; i++) {
-      let offset = (i - (bulletCount - 1) / 2) * 0.1;
-      bullets.push(new Bullet(player.x, player.y, -PI/2 + offset));
+  if (!gameOver && isTouching) {
+    // Calculate movement based on touch drag
+    let dx = mouseX - touchStartX;
+    let dy = mouseY - touchStartY;
+    
+    // Update player direction based on touch movement
+    player.setDir(dx !== 0 ? Math.sign(dx) : 0);
+    player.setVerticalDir(dy !== 0 ? Math.sign(dy) : 0);
+    
+    // Update touch start position for next frame
+    touchStartX = mouseX;
+    touchStartY = mouseY;
+    
+    // Shoot when touching the top half of the screen
+    if (mouseY < height/2) {
+      let currentTime = millis();
+      if (currentTime - lastTouchShootTime > touchShootDelay) {
+        for (let i = 0; i < bulletCount; i++) {
+          let offset = (i - (bulletCount - 1) / 2) * 0.1;
+          bullets.push(new Bullet(player.x, player.y, -PI/2 + offset));
+        }
+        lastTouchShootTime = currentTime;
+      }
     }
-    lastTouchShootTime = currentTime;
+    return false;
   }
-  
-  return false;
 }
 
 function touchEnded() {
-  isTouching = false;
-  return false;
+  if (!gameOver) {
+    isTouching = false;
+    player.setDir(0);
+    player.setVerticalDir(0);
+    return false;
+  }
 }
